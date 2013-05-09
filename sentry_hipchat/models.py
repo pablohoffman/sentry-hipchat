@@ -25,12 +25,17 @@ COLORS = {
     'DEBUG': 'purple',
 }
 
+MESSAGE_FORMATS = (
+    ('html', "HTML"),
+    ('text', "Plain text"),
+)
 
 class HipchatOptionsForm(forms.Form):
     token = forms.CharField(help_text="Your hipchat API token.")
     room = forms.CharField(help_text="Room name or ID.")
     new_only = forms.BooleanField(help_text='Only send new messages.', required=False)
     notify = forms.BooleanField(help_text='Notify message in chat window.', required=False)
+    message_format = forms.ChoiceField(help_text='Message format', required=False, choices=MESSAGE_FORMATS)
     include_project_name = forms.BooleanField(help_text='Include project name in message.', required=False)
 
 
@@ -60,6 +65,7 @@ class HipchatMessage(Plugin):
         token = self.get_option('token', event.project)
         room = self.get_option('room', event.project)
         notify = self.get_option('notify', event.project) or False
+        message_format = self.get_option('message_format', event.project) or 'html'
         include_project_name = self.get_option('include_project_name', event.project) or False
         level = event.get_level_display().upper()
         link = '<a href="%s/%s/group/%d/">(link)</a>' % (settings.URL_PREFIX, group.project.slug, group.id)
@@ -72,9 +78,9 @@ class HipchatMessage(Plugin):
                     'message': event.message,
                     'link': link,
                 },
-                notify, color=COLORS.get(level, 'purple'))
+                notify, message_format, color=COLORS.get(level, 'purple'))
 
-    def send_payload(self, token, room, message, notify, color='red'):
+    def send_payload(self, token, room, message, notify, message_format, color='red'):
         url = "https://api.hipchat.com/v1/rooms/message"
         values = {
             'auth_token': token,
@@ -82,6 +88,7 @@ class HipchatMessage(Plugin):
             'from': 'Sentry',
             'message': message,
             'notify': int(notify),
+            'message_format': message_format,
             'color': color,
         }
         data = urllib.urlencode(values)
